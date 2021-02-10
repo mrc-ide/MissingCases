@@ -1,0 +1,29 @@
+Package: MissingCases
+Title: Uses next generation matrices to estimate numbers of missing cases in an epidemic linelist
+Version: 0.0.0.9000
+Authors@R: 
+    c(person(given = "Juliette",
+           family = "Unwin",
+           role = c("aut", "cre"),
+           email = "h.unwin@imperial.ac.uk",
+           comment = c(ORCID = "0000-0002-9120-4003")),
+    person(given = "Marc",
+           family = "Baguelin",
+           role = c("aut"),
+           email = "m.baguelin@imperial.ac.uk"))
+Description: This package uses next generation matrices to estimate the number of missing cases from a surveillance system.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
+Imports:
+    stats,
+    ggplot2,
+    concaveman,
+    polylabelr,
+    scales
+Suggests: 
+    testthat,
+    knitr
+VignetteBuilder: knitr

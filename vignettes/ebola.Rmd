@@ -1,0 +1,118 @@
+---
+title: "Calculating the proportion of not detected cases in the Ebola epidemic in Guinea during 2014"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Calculating the proportion of not detected cases in the Ebola epidemic in Guinea during 2014}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+set.seed(1)
+```
+
+```{r setup}
+library(MissingCases)
+library(concaveman)
+library(ggplot2)
+library(knitr)
+```
+In this example, we calculate the proportion of missing cases during the Ebola epidemic in Guinea during 2014. We use data from the outbreak to parameterise our two ratios: $r_1$ (the ratio of cases who were contacts but not under surveillance versus the cases who were contacts and under surveillance) and $r_2$ (the ratio of de novo cases versus detected cases that were contacts and under surveillance).
+
+We use data from [Dixon et al.](https://wwwnc.cdc.gov/eid/article/21/11/15-0684_article), which present contact tracing outcomes from two prefectures in Guinea between the 20th September and 31st December 2014. The authors found that only 45 cases out of 152 were registered as contacts of known cases across Kindia and Faranah prefectures. 
+
+Since there is little published data, we consider two scenarios based on different assumptions about $r_1$: 
+
+1. We assume $r_1$ is equal to 0.2 (five times as many contacts under active surveillance than not under active surveillance, or 5 out of 6 contacts are under active surveillance).  This is based on data from [Liberia](https://dx.plos.org/10.1371/journal.pntd.0006762) in 2014 and 2015 where, during the same epidemic as Guinea, 27936 contacts were not under active surveillance, whereas 167419 were.  Since we know the total number of cases on the contact tracing list, 45, and assume $r_1=0.2$, we estimate the number of contacts under active surveillance to be 38 (denominator of $r_2$).  The number of people not on the contact list for the two regions was 107 (numerator of $r_2$). Therefore, $r_2$ is equal to 2.85. 
+```{r}
+num_contacts = sum(28 + 17)
+num_cases = sum(90 + 62)
+r1a = 0.2
+
+active_surveillance = num_contacts/(1 + r1a)
+not_contacts <- num_cases - num_contacts
+r2a = not_contacts / active_surveillance
+```
+
+
+2. We assume $r_1$ is equal to 0.5 (twice as many contacts under active surveillance than not under active surveillance or two thirds of contacts are under active surveillance) to illustrate the impact of a slightly better surveillance system. Since we know the total number of cases on the contact tracing list, 45, and assume $r_1=0.5$, we estimate the number of contacts under active surveillance to be 30 (denominator of $r_2$).  Therefore, $r_2$ is equal to 3.56. 
+
+```{r}
+r1b = 0.5
+
+active_surveillance = num_contacts/(1 + r1b)
+not_contacts <- num_cases - num_contacts
+r2b = not_contacts / active_surveillance
+```
+
+Using these parameters, we take 10,000 samples of the proportion of contacts recalled and the proportion of cases detected in the community uniformly.  Please note in the paper we take more samples, but we reduce here to increase the speed of building the vignette. This means the estimates are slightly different.
+```{r}
+n_iter = 10000                                                             
+chains_a = sample_chains(n_iter = n_iter, r1 = r1a, r2 = r2a)
+chains_b = sample_chains(n_iter = n_iter, r1 = r1b, r2 = r2b)
+```
+
+This results in the following parameter space indicated in blue and central estimate in red.
+```{r, echo=FALSE, fig.height = 5, fig.width = 5, fig.cap="Figure 3: Region of the parameter space compatible with the observed data and three different assumptions of $r_{1}$. Values of $\\pi$ and $\\phi$ are sampled uniformly from $[0,1]^2$ in all cases. The red region assumes $r_{1} = 0.1$, the blue region assumes $r_{1} = 0.5$ and the purple region $r_{1} = 2$. The green dots indicate the point inside each polygon that is most distant from the outline."}
+
+data_regions <- data.frame("pi" = c(chains_a$pi, chains_b$pi),
+                           "phi" = c(chains_a$phi, chains_b$phi),
+                           "Region" = c(rep(1, length(chains_a$phi)), rep(2, length(chains_b$phi))))
+data_regions$Region <- factor(data_regions$Region)
+
+region_a <- concaveman(cbind(chains_a$pi, chains_a$phi), length_threshold = .1)
+region_b <- concaveman(cbind(chains_b$pi, chains_b$phi), length_threshold = .1)
+center_a <- polylabelr::poi(region_a[,1], region_a[,2], precision = 0.001)
+center_b <- polylabelr::poi(region_b[,1], region_b[,2], precision = 0.01)
+
+data_center <- data.frame("pi" = c(center_a$x, center_b$x),
+                          "phi" = c(center_a$y, center_b$y),
+                          "Region" = c(1, 2))
+
+p <- ggplot(data_regions) + 
+  geom_point(aes(x = pi, y = phi, col = Region), size = 0.5, alpha = 0.5) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  geom_point(data = data_center, aes(x = pi, y = phi), col = "red") + 
+  xlab(expression("Proportion of cases detected in the community (" ~ pi~ ")")) + 
+  ylab(expression("Proportion of contacts recalled (" ~ phi ~ ")")) + 
+  scale_colour_manual(values = c("1" = "purple", "2" = "blue"), name = expression(r[1]), labels = c(0.2, 0.5)) + 
+  theme_bw() + theme(legend.position="bottom", plot.margin = margin(20, 20, 1, 1))
+p
+```
+
+and table of results.
+
+```{r table params}
+sol_a = compute_alpha_mu1(pi = center_a$x, phi = center_a$y, r1 = r1a, r2 = r2a)
+sol_b = compute_alpha_mu1(pi = center_b$x, phi = center_b$y, r1 = r1b, r2 = r2b)
+
+gamma_a = center_a$x / (r1a + center_a$x)
+gamma_b = center_b$x / (r1b + center_b$x)
+
+data <- data.frame(c1 = c("$r_{2}$", "$\\pi$", "$\\alpha$", "$\\phi$", "$\\gamma$", "$\\mu_{1}$"),
+                   c2 = c("Ratio of de novo cases versus cases which were contacts under active surveillance", 
+                          "Proportion of cases detected in the community", 
+                          "Scaling in transmission for traced cases",
+                          "Proportion of contacts recalled", 
+                          "Proportion of contact under surveillance", 
+                          "Proportion of cases not detected"),
+                   c3 = c(format(r2a, digit = 3), 
+                          paste0(format(center_a$x*100, digit=3), "\\% (", format(quantile(chains_a$pi,0.025)*100, digit=3), ", ", format(quantile(chains_a$pi,0.975)*100, digit=3) ,")"), 
+                          paste0(format(sol_a$alpha*100, digit=3), "\\% (", format(quantile(chains_a$alpha,0.025)*100, digit=3), ", ", format(quantile(chains_a$alpha, 0.975)*100, digit=3) ,")"), 
+                          paste0(format(mean(center_a$y)*100, digit=3), "\\% (", format(quantile(chains_a$phi,0.025)*100, digit=3), ", ", format(quantile(chains_a$phi,0.975)*100, digit=3) ,")"), 
+                          paste0(format(gamma_a*100, digit=3),"\\% (", format(quantile(chains_a$gamma,0.025)*100, digit=3), ", ", format(quantile(chains_a$gamma,0.975)*100, digit=3) ,")"), 
+                   paste0(format(sol_a$mu1*100, digit=3),"\\% (",format(quantile(chains_a$mu1,0.025)*100, digit=3),", ",format(quantile(chains_a$mu1,0.975)*100, digit=3) ,")")),
+                   c4 = c(format(r2b, digit = 3), 
+                          paste0(format(center_b$x*100, digit=3), "\\% (", format(quantile(chains_b$pi,0.025)*100, digit=3), ", ", format(quantile(chains_b$pi,0.975)*100, digit=3) ,")"), 
+                          paste0(format(sol_b$alpha*100, digit=3), "\\% (", format(quantile(chains_b$alpha,0.025)*100, digit=3), ", ", format(quantile(chains_b$alpha,0.975)*100, digit=3) ,")"), 
+                          paste0(format(center_b$y*100, digit=3), "\\% (", format(quantile(chains_b$phi,0.025)*100, digit=3), ", ", format(quantile(chains_b$phi,0.975)*100, digit=3) ,")"), 
+                          paste0(format(gamma_b*100, digit=3),"\\% (", format(quantile(chains_b$gamma,0.025)*100, digit=3), ", ", format(quantile(chains_b$gamma,0.975)*100, digit=3) ,")"), 
+                   paste0(format(sol_b$mu1*100, digit=3),"\\% (",format(quantile(chains_b$mu1,0.025)*100, digit=3),", ",format(quantile(chains_b$mu1,0.975)*100, digit=3) ,")")))
+
+kable(data, format = "pipe", col.names = c("Parameter", "Description", "Scenario 1 ($r_1 = 0.2$) central estimates (CrI 95\\%))", "Scenario 2 ($r_1 = 0.5$) central estimates (CrI 95\\%))"), caption = "Table: Estimates of the parameters from the three state model") 
+```
