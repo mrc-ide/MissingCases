@@ -6,7 +6,9 @@ This package enables users to calculate the proportion of cases that are not rep
 
 ## Installation
 This pacakge can be installed from github using devtools:
-install.pacakages("devtools")
+
+install.packages("devtools")
+
 install_github("mrc-ide/MissingCases")
 
 ## Examples
