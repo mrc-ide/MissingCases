@@ -9,6 +9,7 @@ This pacakge can be installed from github using devtools:
 
 ```
 install.packages("devtools")
+library(devtools)
 install_github("mrc-ide/MissingCases")
 ```
 
