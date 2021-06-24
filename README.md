@@ -6,10 +6,16 @@ This package enables users to calculate the proportion of cases that are not rep
 
 ## Installation
 This pacakge can be installed from github using devtools:
-install.pacakages("devtools")
+
+```
+install.packages("devtools")
+library(devtools)
 install_github("mrc-ide/MissingCases")
+```
 
 ## Examples
 Two examples are provided in the vignettes:
 1) SARS-CoV-2 in New Zealand during 2020
-2) Guinea Ebola outbreak in 2014.
+2) Guinea Ebola epidemic in 2014.
+
+These can be built by opening the Rproj file and ```devtools::build_vignettes()```.  Then they are found in the doc directory.
