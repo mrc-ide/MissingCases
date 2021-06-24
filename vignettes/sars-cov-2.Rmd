@@ -32,8 +32,9 @@ r2_nz = 90/456
 
 Using these parameters, we take 10,000 samples of the proportion of contacts recalled and the proportion of cases detected in the community uniformly.  Please note in the paper we take more samples, but we reduce here to increase the speed of building the vignette. This means the estimates are slightly different.
 ```{r}
-n_iter = 10000
+n_iter = 100000
 chains_nz = sample_chains(n_iter = n_iter, r1 = r1_nz, r2 = r2_nz)
+print(100*length(chains_nz$mu1)/n_iter)
 ```
 
 This results in the following parameter space indicated in blue and central estimate in red.
@@ -46,13 +47,13 @@ data_regions <- data.frame("pi" = chains_nz$pi,
 data_regions$Region <- factor(data_regions$Region)
 
 region <- concaveman(cbind(chains_nz$pi, chains_nz$phi), length_threshold = .1)
-center <- polylabelr::poi(region[,1], region[,2], precision = 0.001)
-data_center <- data.frame("pi" = center$x,
-                          "phi" = center$y,
+
+data_center <- data.frame("pi" = median(chains_nz$pi),
+                          "phi" = median(chains_nz$phi),
                           "Region" = 1)
 
 p <- ggplot(data_regions) + 
-  geom_point(aes(x = pi, y = phi), size = 0.5, col = "blue", alpha = 0.5) + 
+  geom_point(aes(x = pi, y = phi), size = 0.5, col = "blue", alpha = 0.05) + 
   scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
   scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
   geom_point(data = data_center, aes(x = pi, y = phi), col = "red") + 
@@ -60,21 +61,22 @@ p <- ggplot(data_regions) +
   ylab(expression("Proportion of contacts recalled (" ~ phi ~ ")")) + 
   theme_bw() + theme(legend.position="bottom", plot.margin = margin(20, 20, 1, 1))
 p
+ggsave("nz.pdf", p, width = 5, height = 5)
 ```
 
 and table of results.
 ```{r, echo=FALSE}
-sol_nz = compute_alpha_mu1(pi = center$x, phi = center$y, r1 = r1_nz, r2 = r2_nz)
-gamma <- center$x / (r1_nz + center$x)
+sol_nz = compute_alpha_mu1(pi = data_center$pi, phi = data_center$phi, r1 = r1_nz, r2 = r2_nz)
+gamma <- data_center$pi / (r1_nz + data_center$pi)
 data <- data.frame(c1 = c("$\\pi$", "$\\alpha$", "$\\phi$", "$\\gamma$", "$\\mu_{1}$"),
                    c2 = c("Proportion of cases detected in the community", 
                           "Scaling in transmission for traced cases",
                           "Proportion of contacts recalled", 
                           "Proportion of contact under surveillance", 
-                          "Proportion of cases not detected"),
-                   c3 = c(paste0(format(center$x*100, digit=3), "\\% (", format(quantile(chains_nz$pi,0.025)*100, digit=3), ", ", format(quantile(chains_nz$pi,0.975)*100, digit=3) ,")"), 
+                          "Proportion of infections not detected"),
+                   c3 = c(paste0(format(data_center$pi*100, digit=3), "\\% (", format(quantile(chains_nz$pi,0.025)*100, digit=3), ", ", format(quantile(chains_nz$pi,0.975)*100, digit=3) ,")"), 
                           paste0(format(sol_nz$alpha*100, digit=3), "\\% (", format(quantile(chains_nz$alpha,0.025)*100, digit=3), ", ", format(quantile(chains_nz$alpha,0.975)*100, digit=3) ,")"), 
-                          paste0(format(center$y*100, digit=3), "\\% (", format(quantile(chains_nz$phi,0.025)*100, digit=3), ", ", format(quantile(chains_nz$phi,0.975)*100, digit=3) ,")"), 
+                          paste0(format(data_center$phi*100, digit=3), "\\% (", format(quantile(chains_nz$phi,0.025)*100, digit=3), ", ", format(quantile(chains_nz$phi,0.975)*100, digit=3) ,")"), 
                           paste0(format(gamma*100, digit=3),"\\% (", format(quantile(chains_nz$gamma,0.025)*100, digit=3), ", ", format(quantile(chains_nz$gamma,0.975)*100, digit=3) ,")"), 
                    paste0(format(sol_nz$mu1*100, digit=3),"\\% (",format(quantile(chains_nz$mu1,0.025)*100, digit=3),", ",format(quantile(chains_nz$mu1,0.975)*100, digit=3) ,")")))
 

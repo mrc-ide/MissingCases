@@ -41,3 +41,5 @@ inst/doc
 
 .DS_Store
 .Rbuildignore
+doc
+Meta
