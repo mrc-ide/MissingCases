@@ -5,7 +5,7 @@ This package enables users to calculate the proportion of cases that are not rep
 
 
 ## Installation
-This pacakge can be installed from github using devtools:
+This package can be installed from github using devtools:
 
 ```
 install.packages("devtools")

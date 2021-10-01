@@ -4,7 +4,7 @@
 \alias{sample_chains}
 \title{Sample chains to produce valid parameter solution space}
 \usage{
-sample_chains(n_iter, r1, r2)
+sample_chains(n_iter, r1, r2, xmin = 0, xmax = 1, alpha = FALSE)
 }
 \arguments{
 \item{n_iter}{Number of iterations}
@@ -12,6 +12,12 @@ sample_chains(n_iter, r1, r2)
 \item{r1}{Ratio of cases not under surveillance (but contact traced) versus the cases under surveillance}
 
 \item{r2}{Ratio of de novo cases verses detected cases under surveillance}
+
+\item{xmin}{Minimum value of uniform parameter scaling}
+
+\item{xmax}{Maximum value of uniform parameter scaling}
+
+\item{alpha}{Flag for if want to sample alpha or phi}
 }
 \value{
 List of parameter chains

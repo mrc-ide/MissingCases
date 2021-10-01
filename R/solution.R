@@ -40,6 +40,48 @@ compute_alpha_mu1 <- function(pi = 0.3, phi = 0.7, r1 = 0.59, r2 = 1.5)
   }
 }
 
+#' Calculates optimum phi and mu for given other parameters
+#'
+#' @param pi Proportion of cases detected or “re-captured” by community surveillance
+#' @param alpha Scaling of reproduction number for traced cases
+#' @param r1 Ratio of cases not under surveillance (but contact traced) versus the cases under surveillance
+#' @param r2 Ratio of de novo cases verses detected cases under surveillance
+#'
+#' @return Optimum values of pi and mu1
+#' @export
+#'
+#' @examples
+#' compute_phi_mu1(0.3, 0.7, 0.59, 1.5)
+compute_phi_mu1 <- function(pi = 0.3, alpha = 0.7, r1 = 0.59, r2 = 1.5)
+{
+  # Checks if there is a solution in the bound alpha = [0, 1]
+  if(diff_funct_three_state(pi = pi, phi = 0, r1 = r1, r2 = r2, alpha = alpha)*
+     diff_funct_three_state(pi = pi, phi = 1, r1 = r1, r2 = r2, alpha = alpha) > 0) {
+    return(NA)
+    # Only computes phi and mu if there is a solution
+  } else{
+    diff_sq_three_state <- function(x){
+      return(diff_funct_three_state(pi = pi, phi = x, r1 = r1, r2 = r2, alpha = alpha)^2)
+    }
+    # Finds optimal alpha
+    phi_opt <- stats::optimise(diff_sq_three_state, lower = 0, upper = 1)$minimum
+    # Computes gamma
+    gamma <- pi/(r1+pi)
+
+    # Compute eigenvalues
+    NGM3 <- define_NGM(pi = pi, alpha = alpha, gamma = gamma, phi = phi_opt)
+    EVNGM3 <- eigen(NGM3)
+    # Computes proportion of different types of cases
+    mu_two <- EVNGM3$vectors[2,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+    mu_three <- EVNGM3$vectors[3,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+
+    # Computes optimal number of missing cases
+    nu <- r2*phi_opt*gamma/pi - (1-phi_opt)
+    mu_opt <- nu*(mu_two + alpha*mu_three)
+    return(list(phi=phi_opt, mu1=mu_opt))
+  }
+}
+
 
 #' Difference between two functional relationships of proportion of missing cases
 #'
