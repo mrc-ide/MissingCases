@@ -52,9 +52,9 @@ r2b = not_contacts / active_surveillance
 
 Using these parameters, we take 10,000 samples of the proportion of contacts recalled and the proportion of cases detected in the community uniformly.  Please note in the paper we take more samples, but we reduce here to increase the speed of building the vignette. This means the estimates are slightly different.
 ```{r}
-n_iter = 100000   
-chains_a = sample_chains(n_iter = n_iter, r1 = r1a, r2 = r2a, xmin = 0.2, xmax = 0.8, alpha = TRUE)
-chains_b = sample_chains(n_iter = n_iter, r1 = r1b, r2 = r2b, xmin = 0.2, xmax = 0.8, alpha = TRUE)
+n_iter = 10000#0   
+chains_a = sample_chains(n_iter = n_iter, r1 = r1a, r2 = r2a, alpha = TRUE)
+chains_b = sample_chains(n_iter = n_iter, r1 = r1b, r2 = r2b, alpha = TRUE)
 
 print(100*length(chains_a$mu1)/n_iter)
 print(100*length(chains_b$mu1)/n_iter)

@@ -33,7 +33,7 @@ r2_nz = 90/456
 Using these parameters, we take 10,000 samples of the proportion of contacts recalled and the proportion of cases detected in the community uniformly.  Please note in the paper we take more samples, but we reduce here to increase the speed of building the vignette. This means the estimates are slightly different.
 ```{r}
 n_iter = 100000
-chains_nz = sample_chains(n_iter = n_iter, r1 = r1_nz, r2 = r2_nz, xmin = 0.2, xmax = 0.8, alpha = TRUE)
+chains_nz = sample_chains(n_iter = n_iter, r1 = r1_nz, r2 = r2_nz, alpha = TRUE)
 print(100*length(chains_nz$mu1)/n_iter)
 ```
 
