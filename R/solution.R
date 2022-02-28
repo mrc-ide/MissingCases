@@ -10,7 +10,7 @@
 #'
 #' @examples
 #' compute_alpha_mu1(0.3, 0.7, 0.59, 1.5)
-compute_alpha_mu1 <- function(pi = 0.3, phi = 0.7, r1 = 0.59, r2 = 1.5)
+compute_alpha_mu1 <- function(pi, phi, r1, r2)
 {
   # Checks if there is a solution in the bound alpha = [0, 1]
   if(diff_funct_three_state(pi = pi, phi = phi, r1 = r1, r2 = r2, alpha = 0)*
@@ -52,9 +52,9 @@ compute_alpha_mu1 <- function(pi = 0.3, phi = 0.7, r1 = 0.59, r2 = 1.5)
 #'
 #' @examples
 #' compute_phi_mu1(0.3, 0.7, 0.59, 1.5)
-compute_phi_mu1 <- function(pi = 0.3, alpha = 0.7, r1 = 0.59, r2 = 1.5)
-{
-  # Checks if there is a solution in the bound alpha = [0, 1]
+compute_phi_mu1 <- function(pi, alpha, r1, r2){
+
+  # Checks if there is a solution in the bound phi = [0, 1]
   if(diff_funct_three_state(pi = pi, phi = 0, r1 = r1, r2 = r2, alpha = alpha)*
      diff_funct_three_state(pi = pi, phi = 1, r1 = r1, r2 = r2, alpha = alpha) > 0) {
     return(NA)
@@ -63,7 +63,7 @@ compute_phi_mu1 <- function(pi = 0.3, alpha = 0.7, r1 = 0.59, r2 = 1.5)
     diff_sq_three_state <- function(x){
       return(diff_funct_three_state(pi = pi, phi = x, r1 = r1, r2 = r2, alpha = alpha)^2)
     }
-    # Finds optimal alpha
+    # Finds optimal phi
     phi_opt <- stats::optimise(diff_sq_three_state, lower = 0, upper = 1)$minimum
     # Computes gamma
     gamma <- pi/(r1+pi)
@@ -94,7 +94,7 @@ compute_phi_mu1 <- function(pi = 0.3, alpha = 0.7, r1 = 0.59, r2 = 1.5)
 #' @export
 #' @examples
 #' diff_funct_three_state(0.3, 0.7, 0.47, 0.59, 1.5)
-diff_funct_three_state <- function(pi = 0.3, phi = 0.7, alpha = 0.47, r1=0.59, r2=1.5){
+diff_funct_three_state <- function(pi, phi, alpha, r1, r2){
   # Compute gamma
   gamma <- pi/(r1+pi)
 

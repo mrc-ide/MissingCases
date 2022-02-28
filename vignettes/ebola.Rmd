@@ -20,6 +20,7 @@ library(MissingCases)
 library(concaveman)
 library(ggplot2)
 library(knitr)
+library(scales)
 ```
 In this example, we calculate the proportion of missing cases during the Ebola epidemic in Guinea during 2014. We use data from the outbreak to parameterise our two ratios: $r_1$ (the ratio of cases who were contacts but not under surveillance versus the cases who were contacts and under surveillance) and $r_2$ (the ratio of de novo cases versus detected cases that were contacts and under surveillance).
 
@@ -52,9 +53,9 @@ r2b = not_contacts / active_surveillance
 
 Using these parameters, we take 10,000 samples of the proportion of contacts recalled and the proportion of cases detected in the community uniformly.  Please note in the paper we take more samples, but we reduce here to increase the speed of building the vignette. This means the estimates are slightly different.
 ```{r}
-n_iter = 10000#0   
-chains_a = sample_chains(n_iter = n_iter, r1 = r1a, r2 = r2a, alpha = TRUE)
-chains_b = sample_chains(n_iter = n_iter, r1 = r1b, r2 = r2b, alpha = TRUE)
+n_iter = 10000  
+chains_a = sample_chains(n_iter = n_iter, r1 = r1a, r2 = r2a, xmin_pi = 0, xmax_pi = 1, xmin_2 = 0, xmax_2 = 1, alpha = TRUE)
+chains_b = sample_chains(n_iter = n_iter, r1 = r1b, r2 = r2b, xmin_pi = 0, xmax_pi = 1, xmin_2 = 0, xmax_2 = 1, alpha = TRUE)
 
 print(100*length(chains_a$mu1)/n_iter)
 print(100*length(chains_b$mu1)/n_iter)
@@ -66,6 +67,7 @@ This results in the following parameter space indicated in blue and central esti
 data_regions <- data.frame("pi" = c(chains_a$pi, chains_b$pi),
                            "phi" = c(chains_a$phi, chains_b$phi),
                            "alpha" = c(chains_a$alpha, chains_b$alpha),
+                           "mu" = c(chains_a$mu1, chains_b$mu1),
                            "Region" = c(rep(1, length(chains_a$phi)), rep(2, length(chains_b$phi))))
 data_regions$Region <- factor(data_regions$Region)
 
@@ -90,19 +92,39 @@ p
 ggsave("guinea.pdf", p, width = 5, height = 5)
 ```
 
-```{r}
+
+
+```{r echo=FALSE, fig.height = 5, fig.width = 5}
+data_regions$Region <- ifelse(data_regions$Region  == 1, "Scenario 1", "Scenario 2")
 p <- ggplot(data_regions) + 
-  geom_point(aes(x = pi, y = alpha, col = Region), size = 0.5, alpha = 0.05) + 
+  geom_point(aes(x = pi, y = alpha, col = mu)) + 
   scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
   scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
-  geom_point(data = data_center, aes(x = pi, y = phi), col = "red") + 
+  scale_color_continuous(labels = scales::label_percent(accuracy = 1)) + 
   xlab(expression("Proportion of cases detected in the community (" ~ pi~ ")")) + 
   ylab(expression("Scaling in transmission for traced cases (" ~ alpha ~ ")")) + 
-  scale_colour_manual(values = c("1" = "purple", "2" = "blue"), name = expression(r[1]), labels = c(0.2, 0.5)) + 
-  theme_bw() + theme(legend.position="bottom", plot.margin = margin(20, 20, 1, 1))
+  facet_wrap(~Region, ncol=2) + 
+  labs(colour="Proportion of not detected infections") + 
+  theme_bw() + theme(legend.position="bottom",  plot.margin = margin(20, 20, 1, 1), panel.spacing = unit(2, "lines"), legend.key.width=unit(1,"cm"))
 p
-ggsave("guinea2.pdf", p, width = 5, height = 5)
+ggsave("guinea2.png", p, width = 10, height = 5)
 ```
+
+```{r echo=FALSE, fig.height = 5, fig.width = 5}
+grid <- with(data_regions, interp::interp(pi, alpha, mu))
+
+griddf <- subset(data.frame(x = rep(grid$x, nrow(grid$z)),
+                            y = rep(grid$y, each = ncol(grid$z)),
+                            z = as.numeric(grid$z)),
+                !is.na(z))
+
+p <- ggplot(griddf, aes(x, y, z = z)) +
+  geom_contour_filled() +
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + theme_bw()
+    #geom_point(data = origdata)
+```
+
 
 and table of results.
 
@@ -137,3 +159,4 @@ data <- data.frame(c1 = c("$r_{2}$", "$\\pi$", "$\\alpha$", "$\\phi$", "$\\gamma
 
 kable(data, format = "pipe", col.names = c("Parameter", "Description", "Scenario 1 ($r_1 = 0.2$) central estimates (CrI 95\\%))", "Scenario 2 ($r_1 = 0.5$) central estimates (CrI 95\\%))"), caption = "Table: Estimates of the parameters from the three state model") 
 ```
+

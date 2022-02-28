@@ -4,7 +4,7 @@
 \alias{compute_alpha_mu1}
 \title{Calculates optimum alpha and mu for given other parameters}
 \usage{
-compute_alpha_mu1(pi = 0.3, phi = 0.7, r1 = 0.59, r2 = 1.5)
+compute_alpha_mu1(pi, phi, r1, r2)
 }
 \arguments{
 \item{pi}{Proportion of cases detected or “re-captured” by community surveillance}

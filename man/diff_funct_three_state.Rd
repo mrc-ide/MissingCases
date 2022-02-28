@@ -4,7 +4,7 @@
 \alias{diff_funct_three_state}
 \title{Difference between two functional relationships of proportion of missing cases}
 \usage{
-diff_funct_three_state(pi = 0.3, phi = 0.7, alpha = 0.47, r1 = 0.59, r2 = 1.5)
+diff_funct_three_state(pi, phi, alpha, r1, r2)
 }
 \arguments{
 \item{pi}{Proportion of cases detected or “re-captured” by community surveillance}
