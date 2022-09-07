@@ -1,0 +1,290 @@
+---
+title: "Additional figures in the paper for the three state formulation"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Additional figures in the paper for the three state formulation}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(MissingCases)
+library(ggplot2)
+```
+
+## Convergence
+
+We now show an example of the convergence of the system. We assume π= 0.848, α= 0.484,  γ= 0.772 and ϕ= 0.919. We chose a distribution for R to get some variability while keeping a relatively contained epidemic.
+
+```{r}
+set.seed(10)
+
+p = 0.848
+alpha = 0.484
+gamma = 0.772
+phi = 0.919
+
+NGM <- define_NGM(p, alpha, gamma, phi)
+EVNGM <- eigen(NGM)
+
+Reff <- 1
+
+n_t <- 80 #number of generations
+
+Rt <- Reff/EVNGM$values[1] * runif(n=n_t, min = .2, max = 2)
+
+X <- matrix(0,nrow = 3,ncol=n_t)
+# Initialise number of cases in each group
+X[,1] <- c(8,2,2)
+# Simulate epidemic
+for(i in 2:n_t){
+  X[,i] <- Rt[i] * NGM %*% X[,i-1]
+}
+```
+
+```{r, echo=FALSE, fig.cap="Figure 1: Number of cases for each generation of the example model where $p=0.46$, $\\alpha=0.68$, $\\gamma=0.47$, $\\phi = 0.60$ and $R_{N} \\sim \\mathcal{U}(0.2, 2)$"}
+barplot(X[2,] + X[3,], ylab="Number of detected cases", xlab="Generations", col="#22329933")
+```
+
+```{r, echo=FALSE, fig.cap="Figure 2: Black dots are values derived from simulation while the red line shows the value derived analytically"}
+plot(X[1,]/(X[1,]+X[2,]+X[3,]), ylim=c(0,1), ylab="Proportion of not detected cases", xlab="Number of generations", pch=20)
+abline(h=EVNGM$vectors[1,1]/(EVNGM$vectors[1,1] + EVNGM$vectors[2,1] + EVNGM$vectors[3,1]), col='red')
+```
+
+We see that, as predicted by the analytic derivation, despite the unpredictable course of the epidemics (Figure 1), the proportion of infections that are not detected quickly reaches an equilibrium (Figure 2). This proportion at equilibrium can be calculated using the formula derived above. We note that the convergence is exponential and thus fast proving that λ_1≫λ_2 and λ_1≫λ_3. 
+
+
+### Solution
+
+We assume that π= 0.848, ϕ= 0.919 and get r_1= 0.25 and r_2= 0.20 from the NZ data. Using Equation 5, we estimate γ = 0.772. Solving the system gives the following solution: α= 0.484 and μ_ND1= 0.053 meaning that in this configuration, 5% of the infections are not detected and missing from the records. A graphical representation is given in Figure 3, where the solution of the system can be seen at the intersection of the two curves. No solution is found if the two curves do not intersect.
+
+```{r}
+p2 <- 0.848
+gamma2 <- 0.772
+r1 = 0.25
+r2 =0.2
+```
+
+```{r, echo=FALSE, fig.width=6, fig.height=5, fig.cap="Figure 3: Derivation of $\\alpha$ the reduction in transmission due following tracing and $\\mu_{1}$ the proportion of not detected cases, assuming parameters above. The solid line links $\\mu$ and $\\alpha$ by using the proportion of de novo cases observed vs cases who are contact and followed up. The dashed line indicates the relationship given by the dynamics of the NGM."}
+phi2 <- phi         #fix phi
+
+#plot \mu as a function of alpha using the NGM
+NGM3 <- matrix(0, nrow = 3, ncol = 3)
+
+#Number of points to evaluate mu1 at
+n_p <- 100
+# Defines alpha vector
+aa <- seq(from=0, to=1, length.out = n_p)
+# Initialise vectors
+mm_NGM3 <- rep(0, n_p)
+mm_reap3 <- rep(0, n_p)
+
+for(i in 1:n_p)
+{
+  #fix alpha
+  alpha <- aa[i]
+  #compute surveillance component of next generation matrix
+  NGM3 <- define_NGM(p2, alpha, gamma2, phi2)
+  # compute eigenvalues
+  EVNGM3 <- eigen(NGM3)
+  # compute proportion of missing cases using eigenvalue solution
+  mm_NGM3[i] <- EVNGM3$vectors[1,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportions of other cases
+  mu_two <- EVNGM3$vectors[2,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  mu_three <- EVNGM3$vectors[3,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportion of other cases using alternative relationship
+  nu <- r2*phi2*gamma2/p2 - (1-phi2)
+  mm_reap3[i] <- nu*(mu_two + alpha*mu_three)
+}
+
+dat = data.frame(x = c(aa,aa),
+                 y = c(mm_reap3, mm_NGM3),
+                 type = c(rep("Equation 7", length(mm_reap3)), rep("NGM", length(mm_NGM3))))
+
+ggplot(dat) + geom_line(aes(x, y, linetype = type)) + 
+  xlab("Reduction in transmission for cases who are being actively\n surveilled as contacts relative to other cases (" ~ alpha ~")") + ylab("Proportion of not detected cases (" ~ mu[ND] ~ ")") + 
+   scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  theme_bw() + theme(legend.title = element_blank())
+```
+
+
+```{r, echo=FALSE}
+#Use the find_sol function to find the values of alpha and \mu for the example
+sol_example_3 <- compute_alpha_mu1(p=p2, phi=phi2, r1=r1, r2=r2)
+print(sol_example_3)
+```
+
+```{r}
+alpha2 <- 0.484
+r1 = 0.25
+r2 =0.2
+p2 <- 0.848
+gamma2 <- 0.772
+```
+
+
+```{r, echo=FALSE, fig.width=6, fig.height=5, fig.cap="Figure 4: Derivation of $\\phi$ the proportion of infected contacts recalled and $\\mu_{1}$ the proportion of not detected cases, assuming parameters above. The solid line links $\\mu$ and $\\phi$ by using the proportion of de novo cases observed vs cases who are contact and followed up. The dashed line indicates the relationship given by the dynamics of the NGM."}
+
+#plot \mu as a function of alpha using the NGM
+NGM3 <- matrix(0, nrow = 3, ncol = 3)
+
+#Number of points to evaluate mu1 at
+n_p <- 100
+# Defines alpha vector
+pp <- seq(from=0, to=1, length.out = n_p)
+# Initialise vectors
+mm_NGM3 <- rep(0, n_p)
+mm_reap3 <- rep(0, n_p)
+
+for(i in 1:n_p)
+{
+  #fix alpha
+  phi <- pp[i]
+
+  #compute surveillance component of next generation matrix
+  NGM3 <- define_NGM(p2, alpha2, gamma2, phi)
+  # compute eigenvalues
+  EVNGM3 <- eigen(NGM3)
+  # compute proportion of missing cases using eigenvalue solution
+  mm_NGM3[i] <- EVNGM3$vectors[1,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportions of other cases
+  mu_two <- EVNGM3$vectors[2,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  mu_three <- EVNGM3$vectors[3,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportion of other cases using alternative relationship
+  nu <- r2*phi*gamma2/p2 - (1-phi)
+  mm_reap3[i] <- nu*(mu_two + alpha2*mu_three)
+}
+
+dat = data.frame(x = c(pp,pp),
+                 y = c(mm_reap3, mm_NGM3),
+                 type = c(rep("Equation 7", length(mm_reap3)), rep("NGM", length(mm_NGM3))))
+
+ggplot(dat) + geom_line(aes(x, y, linetype = type)) + 
+  xlab("Proportion of infected contacts recalled (" ~ phi~ ")") + ylab("Proportion of not detected cases (" ~ mu[ND] ~ ")") + 
+   scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  theme_bw() + theme(legend.title = element_blank())
+
+```
+
+
+```{r, echo=FALSE}
+#Use the find_sol function to find the values of alpha and \mu for the example
+sol_example_3 <- compute_phi_mu1(p=p2, alpha=alpha2, r1=r1, r2=r2)
+print(sol_example_3)
+```
+
+```{r}
+alpha2 <- 0.484
+r1 = 0.25
+r2 =0.2
+phi2 = 0.919
+
+```
+
+```{r, echo=FALSE, fig.width=6, fig.height=5, fig.cap="Figure 5: Derivation of $\\pi$ the proportion of cases re-captured by community surveillance and $\\mu_{1}$ the proportion of not detected cases, assuming parameters above. The solid line links $\\mu$ and $\\pi$ by using the proportion of de novo cases observed vs cases who are contact and followed up. The dashed line indicates the relationship given by the dynamics of the NGM."}
+
+#plot \mu as a function of alpha using the NGM
+NGM3 <- matrix(0, nrow = 3, ncol = 3)
+
+#Number of points to evaluate mu1 at
+n_p <- 100
+# Defines alpha vector
+pp <- seq(from=0, to=1, length.out = n_p)
+# Initialise vectors
+mm_NGM3 <- rep(0, n_p)
+mm_reap3 <- rep(0, n_p)
+
+for(i in 1:n_p)
+{
+  #fix p
+  p <- pp[i]
+  gamma = p/(r1 + p)
+
+  #compute surveillance component of next generation matrix
+  NGM3 <- define_NGM(p, alpha2, gamma, phi2)
+  # compute eigenvalues
+  EVNGM3 <- eigen(NGM3)
+  # compute proportion of missing cases using eigenvalue solution
+  mm_NGM3[i] <- EVNGM3$vectors[1,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportions of other cases
+  mu_two <- EVNGM3$vectors[2,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  mu_three <- EVNGM3$vectors[3,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportion of other cases using alternative relationship
+  nu <- r2*phi2*gamma/p - (1-phi2)
+  mm_reap3[i] <- nu*(mu_two + alpha2*mu_three)
+}
+
+dat = data.frame(x = c(pp,pp),
+                 y = c(mm_reap3, mm_NGM3),
+                 type = c(rep("Equation 7", length(mm_reap3)), rep("NGM", length(mm_NGM3))))
+
+ggplot(dat) + geom_line(aes(x, y, linetype = type)) + 
+  xlab("Proportion of cases cases detected in the community(" ~ pi~ ")") + ylab("Proportion of not detected cases (" ~ mu[ND] ~ ")") + 
+   scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  theme_bw() + theme(legend.title = element_blank())
+
+```
+
+
+```{r, echo=FALSE}
+#Use the find_sol function to find the values of alpha and \mu for the example
+sol_example_3 <- compute_pi_mu1(phi=phi2, alpha=alpha2, r1=r1, r2=r2)
+print(sol_example_3)
+```
+
+```{r, echo=FALSE, fig.width=6, fig.height=5, fig.cap="Figure 6: Derivation of $\\pi$ the proportion of cases re-captured by community surveillance and $\\mu_{1}$ the proportion of not detected cases, assuming parameters above. The solid line links $\\mu$ and $\\pi$ by using the proportion of de novo cases observed vs cases who are contact and followed up. The dashed line indicates the relationship given by the dynamics of the NGM."}
+
+alpha2 <- 0.484
+r1 = 0.25
+r2 =0.2
+phi2 = 0.7
+
+#plot \mu as a function of alpha using the NGM
+NGM3 <- matrix(0, nrow = 3, ncol = 3)
+
+#Number of points to evaluate mu1 at
+n_p <- 100
+# Defines alpha vector
+pp <- seq(from=0, to=1, length.out = n_p)
+# Initialise vectors
+mm_NGM3 <- rep(0, n_p)
+mm_reap3 <- rep(0, n_p)
+
+for(i in 1:n_p)
+{
+  #fix alpha
+  p <- pp[i]
+  gamma = p/(r1 + p)
+
+  #compute surveillance component of next generation matrix
+  NGM3 <- define_NGM(p, alpha2, gamma, phi2)
+  # compute eigenvalues
+  EVNGM3 <- eigen(NGM3)
+  # compute proportion of missing cases using eigenvalue solution
+  mm_NGM3[i] <- EVNGM3$vectors[1,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportions of other cases
+  mu_two <- EVNGM3$vectors[2,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  mu_three <- EVNGM3$vectors[3,1]/(EVNGM3$vectors[1,1] + EVNGM3$vectors[2,1] + EVNGM3$vectors[3,1])
+  # compute proportion of other cases using alternative relationship
+  nu <- r2*phi2*gamma/p - (1-phi2)
+  mm_reap3[i] <- nu*(mu_two + alpha2*mu_three)
+}
+
+dat = data.frame(x = c(pp,pp),
+                 y = c(mm_reap3, mm_NGM3),
+                 type = c(rep("Equation 7", length(mm_reap3)), rep("NGM", length(mm_NGM3))))
+
+ggplot(dat) + geom_line(aes(x, y, linetype = type)) + 
+  xlab("Proportion of cases cases detected in the community(" ~ pi~ ")") + ylab("Proportion of not detected cases (" ~ mu[ND] ~ ")") + 
+   scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  theme_bw() + theme(legend.title = element_blank())
+
+```

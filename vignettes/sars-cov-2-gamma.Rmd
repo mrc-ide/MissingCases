@@ -1,0 +1,105 @@
+---
+title: "Calculating the proportion of not detected cases in the SARS-CoV-2 epidemic in 2020 using a prior on gamma"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Calculating the proportion of not detected cases in the SARS-CoV-2 epidemic in 2020 using a prior on gamma}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+set.seed(1)
+```
+
+```{r setup}
+library(MissingCases)
+library(concaveman)
+library(ggplot2)
+library(knitr)
+library(scales)
+```
+In this example, we calculate the proportion of missing cases during the SARS-CoV-2 epidemic in New Zealand (NZ) during 2020 using a prior on $\gamma$. We use data from the outbreak to parameterise our two ratios: $r_1$ (the ratio of cases who were contacts but not under surveillance versus the cases who were contacts and under surveillance) and $r_2$ (the ratio of de novo cases versus detected cases that were contacts and under surveillance).
+
+Well performing contact tracing systems have been partially credited for the success of the NZ’s response to the SARS-CoV-2 epidemic in 2020.  [NZ’s Ministry of Health](https://www.health.govt.nz/our-work/diseases-and-conditions/covid-19-novel-coronavirus/covid-19-data-and-statistics/covid-19-source-cases) reported 570 locally acquired cases up until 14th December 2020 that had an epidemiological link to a previous case and 90 cases without an epidemiological link. We assume that 80% of contacts were under active surveillance, since this was determined as the minimum requirement for the [NZ system](https://apo.org.au/sites/default/files/resource-files/2020-04/apo-nid303350.pdf).  Therefore, we estimate 456 cases were under active surveillance and 114 cases were not.  This makes  r_1=0.25 and r_2=0.20.
+
+```{r}
+r1_nz = 114/456
+r2_nz = 90/456
+```
+
+Using these parameters, we take 10,000 samples of the proportion of contacts recalled and the proportion of cases detected in the community uniformly.  Please note in the paper we take more samples, but we reduce here to increase the speed of building the vignette. This means the estimates are slightly different.
+```{r}
+n_iter = 10000
+chains_nz = sample_chains(n_iter = n_iter, r1 = r1_nz, r2 = r2_nz, 
+                          xmin_pi = 0, xmax_pi = 1, 
+                          xmin_2 = 0, xmax_2 = 1, gamma = TRUE)
+print(100*length(chains_nz$mu1)/n_iter)
+```
+
+This results in the following parameter space indicated in blue and central estimate in red.
+```{r, echo=FALSE, fig.height = 5, fig.width = 5, fig.cap="Figure: Region of the parameter space compatible with the observed data for New Zealand. Values of $\\pi$ and $\\phi$ are sampled uniformly from $[0,1]^2$ in all cases. The red region assumes $r_{1} = 0.1$, the blue region assumes $r_{1} = 0.5$ and the purple region $r_{1} = 2$. The green dots indicate the point inside each polygon that is most distant from the outline."}
+par(mar=c(5,6,4,1)+.1)
+
+data_regions <- data.frame("pi" = chains_nz$pi,
+                           "phi" = chains_nz$phi, 
+                           "alpha" = chains_nz$alpha, 
+                           "gamma" = chains_nz$gamma, 
+                           "mu" = chains_nz$mu1, 
+                           "Region" = rep(1, length(chains_nz$phi)))
+data_regions$Region <- factor(data_regions$Region)
+
+region <- concaveman(cbind(chains_nz$pi, chains_nz$phi), length_threshold = .1)
+
+data_center <- data.frame("pi" = median(chains_nz$pi),
+                          "phi" = median(chains_nz$phi),
+                          "alpha" = median(chains_nz$alpha),
+                          "Region" = 1)
+
+p <- ggplot(data_regions) + 
+  geom_point(aes(x = pi, y = phi), size = 0.5, col = "blue", alpha = 0.05) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  geom_point(data = data_center, aes(x = pi, y = phi), col = "red") + 
+  xlab(expression("Proportion of cases detected in the community (" ~ pi~ ")")) + 
+  ylab(expression("Proportion of contacts recalled (" ~ phi ~ ")")) + 
+  theme_bw() + theme(legend.position="bottom", plot.margin = margin(20, 20, 1, 1))
+p
+ggsave("nz_gamma.pdf", p, width = 5, height = 5)
+```
+```{r echo=FALSE, fig.height = 5, fig.width = 5}
+p <- ggplot(data_regions) + 
+  geom_point(aes(x = gamma, y = alpha, col = mu)) + 
+  scale_x_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 1), labels = scales::percent) + 
+  scale_color_continuous(labels = scales::label_percent(accuracy = 1)) + 
+  xlab(expression("Proportion of contacts under active surveillance (" ~ gamma ~ ")")) + 
+  ylab(expression("Scaling in transmission for traced cases (" ~ alpha ~ ")")) + 
+  labs(colour="Proportion of not detected infections") + 
+  theme_bw() + theme(legend.position="bottom",  plot.margin = margin(20, 20, 1, 1))
+p
+ggsave("nz2_gamma.pdf", p, width = 5, height = 5)
+```
+```
+
+and table of results.
+```{r, echo=FALSE}
+sol_nz = compute_alpha_mu1(pi = data_center$pi, phi = data_center$phi, r1 = r1_nz, r2 = r2_nz)
+gamma <- data_center$pi / (r1_nz + data_center$pi)
+data <- data.frame(c1 = c("$\\pi$", "$\\alpha$", "$\\phi$", "$\\gamma$", "$\\mu_{1}$"),
+                   c2 = c("Proportion of cases detected in the community", 
+                          "Scaling in transmission for traced cases",
+                          "Proportion of contacts recalled", 
+                          "Proportion of contact under surveillance", 
+                          "Proportion of infections not detected"),
+                   c3 = c(paste0(format(data_center$pi*100, digit=3), "\\% (", format(quantile(chains_nz$pi,0.025)*100, digit=3), ", ", format(quantile(chains_nz$pi,0.975)*100, digit=3) ,")"), 
+                          paste0(format(sol_nz$alpha*100, digit=3), "\\% (", format(quantile(chains_nz$alpha,0.025)*100, digit=3), ", ", format(quantile(chains_nz$alpha,0.975)*100, digit=3) ,")"), 
+                          paste0(format(data_center$phi*100, digit=3), "\\% (", format(quantile(chains_nz$phi,0.025)*100, digit=3), ", ", format(quantile(chains_nz$phi,0.975)*100, digit=3) ,")"), 
+                          paste0(format(gamma*100, digit=3),"\\% (", format(quantile(chains_nz$gamma,0.025)*100, digit=3), ", ", format(quantile(chains_nz$gamma,0.975)*100, digit=3) ,")"), 
+                   paste0(format(sol_nz$mu1*100, digit=3),"\\% (",format(quantile(chains_nz$mu1,0.025)*100, digit=3),", ",format(quantile(chains_nz$mu1,0.975)*100, digit=3) ,")")))
+
+kable(data, format = "pipe", col.names = c("Parameter",  "Description", "Central estimates (CrI 95\\%))"), caption = "Table: Estimates of the parameters from the three state model using a crude rejection sampling approach with uniform priors for parameters") 
+```

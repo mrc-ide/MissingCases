@@ -2,7 +2,10 @@
 
 export(compute_alpha_mu1)
 export(compute_phi_mu1)
+export(compute_pi_mu1)
 export(define_NGM)
+export(define_NGM_four)
+export(diff_funct_four_state)
 export(diff_funct_three_state)
 export(prop_missing_cases)
 export(sample_chains)

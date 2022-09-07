@@ -12,7 +12,8 @@ sample_chains(
   xmax_pi = 1,
   xmin_2 = 0,
   xmax_2 = 1,
-  alpha = FALSE
+  alpha = FALSE,
+  gamma = FALSE
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ sample_chains(
 \item{xmax_2}{Maximum value of uniform parameter scaling}
 
 \item{alpha}{Flag for if want to sample alpha or phi}
+
+\item{gamma}{Flag for if want to gamma alpha or pi}
 }
 \value{
 List of parameter chains
