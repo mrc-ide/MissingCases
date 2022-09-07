@@ -19,3 +19,5 @@ Two examples are provided in the vignettes:
 2) Guinea Ebola epidemic in 2014.
 
 These can be built by opening the Rproj file and ```devtools::build_vignettes()```.  Then they are found in the doc directory.
+
+Code to recreate the inidvidual based simiulation using [Netlogo](https://ccl.northwestern.edu/netlogo/) can be found in [inst/netlogo](inst/netlogo).
